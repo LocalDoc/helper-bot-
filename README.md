@@ -17,7 +17,7 @@
 
 ### 2.1 Основная логика бота
 
-![Logic](https://github.com/LocalDoc/helper-bot-/blob/main/images/user%20to%20answer%20flowchart.png)
+![](https://github.com/LocalDoc/helper-bot-/blob/main/images/user%20to%20answer%20flowchart.png)
 
 Полный цикл работы бота.
 Пользователь открывает его и видит главное меню (`/start`). На этом этапе бот проверяет, есть ли у пользователя активный пробный период или подписка (`Free trial?` / `Has subscription?`). Если пробный период ещё не активирован, пользователю предлагается его активировать (`Offer free trial`). После согласия бот запускает пробный период с ограничением по количеству сообщений (`Activate free trial with limited msg`). Если пользователь уже использует пробный период, проверяется, остались ли сообщения для отправки (`Trial messages left?`). При исчерпании пробного лимита пользователю предлагается оформить подписку (`Offer subscription`).
@@ -30,7 +30,7 @@
 
 ### 2.2 Высокоуровневая архитектура системы
 
-![Architecture](https://github.com/LocalDoc/helper-bot-/blob/main/images/high%20level%20arch.png)
+![](https://github.com/LocalDoc/helper-bot-/blob/main/images/arch.png)
 
 На первом уровне взаимодействует пользователь через Telegram. Все сообщения, команды и действия пользователя передаются Telegram-боту. Бот обрабатывает эти входящие сообщения и передаёт их в ядро бота (Bot Core Logic), где осуществляется несколько функций: аутентификация и управление состоянием пользователя (Auth and user state handler), проверка подписки и пробного периода (Subscription and trial checker), маршрутизация сообщений в соответствующие сервисы (Message router), обработка ошибок (Error handler) и логирование действий пользователя и бота (Logging module).
 
