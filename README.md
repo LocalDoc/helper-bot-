@@ -1,5 +1,11 @@
 ## 1. Помогатор
 
+(TBD: (TeamLead)
+- fix arch img to better reflect final arch 
+- spec which model verisons we use
+- fix arch layout description
+- write out more detailed dev instrc
+
 Учасники проекта: 
 - [@ne_necoffeee](https://t.me/ne_necoffeee) Dev 4
 - [@Mahmadmurod](https://t.me/Mahmadmurod) Dev 1
