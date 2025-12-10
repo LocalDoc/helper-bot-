@@ -39,7 +39,6 @@ def increment_question_count(user_id: int):
     meta = ensure_user_meta(user_id)
     meta["questions_used"] += 1
 
-
 def can_ask_question(user_id: int) -> (bool, str):
     """
     тут проверка, может ли пользователь задать очередной вопрос.
