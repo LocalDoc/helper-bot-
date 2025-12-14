@@ -4,40 +4,67 @@ from aiogram.types import Message, CallbackQuery
 from .core import (
     bot, dp, user_model, waiting_for_question, ensure_user_meta,
     increment_question_count, can_ask_question, DEFAULT_MODEL_CODE,
-    FREE_QUESTION_LIMIT
+    FREE_QUESTION_LIMIT, get_user_lang, set_user_lang
+)
+from .keyboards import (
+    main_menu_kb, providers_menu_kb, models_menu_kb, settings_menu_kb,
+    language_kb, pay_kb
 )
 from .models import MODELS, PROVIDER_TITLES
-from .keyboards import main_menu_kb, providers_menu_kb, models_menu_kb, settings_menu_kb
 from .utils import mock_model_answer
+from .language import t
 
-# КОМАНДЫ
+
+def tr(user_id: int, key: str, **kwargs) -> str:
+    return t(get_user_lang(user_id), key, **kwargs)
+
+
+# commands
+
+@dp.message(F.text == "/pay")
+async def cmd_pay(message: Message):
+    user_id = message.from_user.id
+    ensure_user_meta(user_id)
+
+    await message.answer(
+        tr(user_id, "pay_title"),
+        parse_mode="Markdown",
+        reply_markup=pay_kb(user_id),
+    )
+    await message.answer(tr(user_id, "pay_rules"))
+
 
 @dp.message(F.text == "/start")
 async def cmd_start(message: Message):
-    ensure_user_meta(message.from_user.id)
+    user_id = message.from_user.id
+    ensure_user_meta(user_id)
     await message.answer(
-        "Привет! Я твой AI-бот.\n"
-        "Выбери действие из меню ниже 👇",
-        reply_markup=main_menu_kb(),
+        tr(user_id, "start_hi"),
+        reply_markup=main_menu_kb(user_id),
+    )
+
+
+@dp.message(F.text == "/language")
+async def cmd_language(message: Message):
+    user_id = message.from_user.id
+    ensure_user_meta(user_id)
+    await message.answer(
+        tr(user_id, "language_select"),
+        reply_markup=language_kb(user_id),
     )
 
 
 @dp.message(F.text == "/help")
 async def cmd_help(message: Message):
+    user_id = message.from_user.id
     await message.answer(
-        "*Помощь*\n\n"
-        "1. Нажми «⚙️ Выбрать модель» и выбери нужную (ChatGPT, Deepseek, Perplexity).\n"
-        "2. Нажми «🤖 Задать вопрос» — следующий текст будет отправлен в ИИ.\n"
-        "3. «💰 Мои кредиты» и «➕ Пополнить баланс» пока работают как заглушки — позже их свяжем с backend.\n"
-        "4. В /settings можно посмотреть профиль и VIP-информацию.\n"
-        "5. /status — показывает твой статус (VIP или Обычный) и использованные вопросы.",
+        tr(user_id, "help"),
         parse_mode="Markdown",
     )
 
 
 @dp.message(F.text == "/model")
 async def cmd_model(message: Message):
-    """Показать текущую выбранную модель."""
     user_id = message.from_user.id
     code = user_model.get(user_id, DEFAULT_MODEL_CODE)
     info = MODELS.get(code, MODELS[DEFAULT_MODEL_CODE])
@@ -45,48 +72,68 @@ async def cmd_model(message: Message):
     provider = info["provider"]
     name = info["name"]
     paid = info["paid"]
-    status = "платная 💰" if paid else "бесплатная 🆓"
+    status = "💰" if paid else "🆓"
+    full_name = f"{provider} — {name}"
 
     await message.answer(
-        f"Текущая модель: {provider} — {name} ({status})"
+        tr(
+            user_id,
+            "current_model",
+            full_name=full_name,
+            status=status
+        )
     )
 
 
 @dp.message(F.text == "/settings")
 async def cmd_settings(message: Message):
-    """Открыть меню настроек."""
+    user_id = message.from_user.id
     await message.answer(
-        "⚙️ *Настройки*\n\n"
-        "Здесь можно посмотреть профиль и VIP-информацию.",
-        reply_markup=settings_menu_kb(),
+        tr(user_id, "settings"),
+        reply_markup=settings_menu_kb(user_id),
         parse_mode="Markdown",
     )
 
+
 @dp.message(F.text == "/status")
 async def cmd_status(message: Message):
-    """Показывает VIP/Обычный и сколько вопросов использовано."""
     user_id = message.from_user.id
     meta = ensure_user_meta(user_id)
+
     if meta.get("is_vip"):
-        status_text = "🌟 VIP"
-        limit_text = "♾ Сообщений: без ограничений"
+        status_text = tr(user_id, "status_vip")
+        limit_text = tr(user_id, "status_unlimited")
     else:
-        status_text = "🔹 Обычный"
-        limit_text = f"Использовано вопросов: {meta.get('questions_used', 0)} / {FREE_QUESTION_LIMIT}"
+        status_text = tr(user_id, "status_free")
+        limit_text = tr(
+            user_id,
+            "status_used",
+            used=meta.get("questions_used", 0),
+            limit=FREE_QUESTION_LIMIT
+        )
 
-    await message.answer(f"Статус: {status_text}\n{limit_text}", parse_mode="Markdown")
+    await message.answer(
+        f"{status_text}\n{limit_text}",
+        parse_mode="Markdown"
+    )
 
-# КНОПКИ ГЛАВНОГО МЕНЮ И НАСТРОЕК
+
+# main menu and settings buttons
+
+@dp.callback_query(F.data == "pay:get_plus")
+async def on_pay_get_plus(callback: CallbackQuery):
+    user_id = callback.from_user.id
+    await callback.message.answer(tr(user_id, "pay_stub"))
+    await callback.answer()
+
 
 @dp.callback_query(F.data == "ask_ai")
 async def on_ask_ai(callback: CallbackQuery):
-    """Нажали 'Задать вопрос' — следующий текст считаем вопросом к ИИ."""
     user_id = callback.from_user.id
     waiting_for_question[user_id] = True
 
     await callback.message.answer(
-        "Напиши свой вопрос для ИИ.\n"
-        "Сейчас я повторю его и покажу, какая модель выбрана"
+        tr(user_id, "ask_prompt")
     )
     await callback.answer()
 
@@ -100,48 +147,52 @@ async def on_credits(callback: CallbackQuery):
     remaining = max(0, FREE_QUESTION_LIMIT - used)
 
     await callback.message.answer(
-        f"📊 *Статистика бесплатных вопросов:*\n"
-        f"Использовано: *{used}*\n"
-        f"Осталось: *{remaining}* из {FREE_QUESTION_LIMIT}",
+        tr(
+            user_id,
+            "credits_stats",
+            used=used,
+            remaining=remaining,
+            limit=FREE_QUESTION_LIMIT
+        ),
         parse_mode="Markdown"
     )
-
     await callback.answer()
 
 
 @dp.callback_query(F.data == "topup")
 async def on_topup(callback: CallbackQuery):
-    await callback.message.answer(
-        "Здесь потом будет пополнение баланса через Telegram Payments 💳"
-    )
+    user_id = callback.from_user.id
+    await callback.message.answer(tr(user_id, "topup"))
     await callback.answer()
 
 
 @dp.callback_query(F.data == "settings_profile")
 async def on_settings_profile(callback: CallbackQuery):
-    """Показать профиль включая модель и использованные вопросы"""
     user_id = callback.from_user.id
     meta = ensure_user_meta(user_id)
     code = user_model.get(user_id, DEFAULT_MODEL_CODE)
     info = MODELS.get(code, MODELS[DEFAULT_MODEL_CODE])
+
+    status_value = "VIP" if meta.get("is_vip") else ("Free" if get_user_lang(user_id) == "en" else "Обычный")
+
     await callback.message.answer(
-        f"👤 Профиль:\n"
-        f"• Статус: {'VIP' if meta.get('is_vip') else 'Обычный'}\n"
-        f"• Модель: {info['provider']} — {info['name']}\n"
-        f"• Использовано вопросов: {meta.get('questions_used', 0)}"
+        tr(
+            user_id,
+            "profile",
+            status=status_value,
+            provider=info["provider"],
+            name=info["name"],
+            used=meta.get("questions_used", 0)
+        )
     )
     await callback.answer()
 
 
 @dp.callback_query(F.data == "settings_vip")
 async def on_settings_vip(callback: CallbackQuery):
-    """Информация о VIP"""
+    user_id = callback.from_user.id
     await callback.message.answer(
-        "🌟 *VIP режим*\n\n"
-        "VIP даёт:\n"
-        "• Безлимитный доступ к вопросам\n"
-        "• (потом) доступ к премиум-моделям\n\n"
-        "Покупка VIP пока не реализована",
+        tr(user_id, "vip_info"),
         parse_mode="Markdown",
     )
     await callback.answer()
@@ -149,32 +200,34 @@ async def on_settings_vip(callback: CallbackQuery):
 
 @dp.callback_query(F.data == "settings_back")
 async def on_settings_back(callback: CallbackQuery):
-    """Вернуться в главное меню из настроек."""
+    user_id = callback.from_user.id
     await callback.message.answer(
-        "Возвращаю в главное меню 👇",
-        reply_markup=main_menu_kb(),
+        tr(user_id, "back_to_menu"),
+        reply_markup=main_menu_kb(user_id),
     )
     await callback.answer()
 
 
 @dp.callback_query(F.data == "choose_model")
 async def on_choose_model(callback: CallbackQuery):
-    """Показать меню выбора семейства моделей."""
+    user_id = callback.from_user.id
     await callback.message.answer(
-        "Сначала выбери семейство моделей:",
+        tr(user_id, "choose_provider"),
         reply_markup=providers_menu_kb(),
     )
     await callback.answer()
 
-# ВЫБОР СЕМЕЙСТВА МОДЕЛЕЙ
+
+# selection of a model family
 
 @dp.callback_query(F.data == "provider_chatgpt")
 async def on_provider_chatgpt(callback: CallbackQuery):
+    user_id = callback.from_user.id
     provider_code = "chatgpt"
     provider_name = PROVIDER_TITLES[provider_code]
 
     await callback.message.answer(
-        f"Семейство: {provider_name}\nВыбери конкретную модель:",
+        tr(user_id, "provider_pick", provider=provider_name),
         reply_markup=models_menu_kb(provider_code),
     )
     await callback.answer()
@@ -182,11 +235,12 @@ async def on_provider_chatgpt(callback: CallbackQuery):
 
 @dp.callback_query(F.data == "provider_deepseek")
 async def on_provider_deepseek(callback: CallbackQuery):
+    user_id = callback.from_user.id
     provider_code = "deepseek"
     provider_name = PROVIDER_TITLES[provider_code]
 
     await callback.message.answer(
-        f"Семейство: {provider_name}\nВыбери конкретную модель:",
+        tr(user_id, "provider_pick", provider=provider_name),
         reply_markup=models_menu_kb(provider_code),
     )
     await callback.answer()
@@ -194,93 +248,98 @@ async def on_provider_deepseek(callback: CallbackQuery):
 
 @dp.callback_query(F.data == "provider_perplexity")
 async def on_provider_perplexity(callback: CallbackQuery):
+    user_id = callback.from_user.id
     provider_code = "perplexity"
     provider_name = PROVIDER_TITLES[provider_code]
 
     await callback.message.answer(
-        f"Семейство: {provider_name}\nВыбери конкретную модель:",
+        tr(user_id, "provider_pick", provider=provider_name),
         reply_markup=models_menu_kb(provider_code),
     )
     await callback.answer()
 
-# ВЫБОР КОНКРЕТНОЙ МОДЕЛИ
+
+# choosing a specific model
 
 @dp.callback_query(F.data.startswith("model:"))
 async def on_model_selected(callback: CallbackQuery):
-    """Пользователь выбрал конкретную модель."""
+    user_id = callback.from_user.id
     code = callback.data.split(":", 1)[1]
 
     info = MODELS.get(code)
     if not info:
-        await callback.message.answer("Неизвестная модель")
+        await callback.message.answer(tr(user_id, "unknown_model"))
         await callback.answer()
         return
 
-    user_id = callback.from_user.id
     user_model[user_id] = code
 
     provider = info["provider"]
     name = info["name"]
     paid = info["paid"]
-    status = "платная 💰" if paid else "бесплатная 🆓"
+    status = "💰" if paid else "🆓"
 
     await callback.message.answer(
-        f"Вы выбрали модель:\n"
-        f"{provider} — {name} ({status})"
+        tr(user_id, "model_selected", provider=provider, name=name, status=status)
     )
     await callback.answer()
 
-# ОБРАБОТКА СООБЩЕНИЙ
+
+@dp.callback_query(F.data.startswith("lang:"))
+async def on_language_selected(callback: CallbackQuery):
+    user_id = callback.from_user.id
+    ensure_user_meta(user_id)
+
+    lang = callback.data.split(":", 1)[1]
+    set_user_lang(user_id, lang)
+
+    if get_user_lang(user_id) == "en":
+        await callback.message.answer(tr(user_id, "language_set_en"))
+    else:
+        await callback.message.answer(tr(user_id, "language_set_ru"))
+
+    await callback.answer()
+
+
+# message processing
 
 @dp.message()
 async def handle_message(message: Message):
-    """
-    Если ждём вопрос к ИИ — трактуем сообщение как вопрос.
-    Иначе просто отвечаем как обычный чат.
-    """
     user_id = message.from_user.id
     text = message.text or ""
 
     if waiting_for_question.get(user_id):
-        # это вопрос к ИИ
-        waiting_for_question[user_id] = False  # сбрасываем флаг
+        waiting_for_question[user_id] = False
 
-        # Проверяем лимит VIP -> безлимит, Free -> до FREE_QUESTION_LIMIT
         allowed, reason = can_ask_question(user_id)
         if not allowed:
-            await message.answer(reason)
+            await message.answer(tr(user_id, "limit_reached"))
             return
 
-        # увеличиваем счётчик использованных вопросов
         increment_question_count(user_id)
 
-        # берём выбранную модель, если нет — GPT-5
         code = user_model.get(user_id, DEFAULT_MODEL_CODE)
         info = MODELS.get(code, MODELS[DEFAULT_MODEL_CODE])
 
         provider = info["provider"]
         name = info["name"]
         paid = info["paid"]
-        status = "платная 💰" if paid else "бесплатная 🆓"
+        status = "💰" if paid else "🆓"
         full_name = f"{provider} — {name}"
 
-        # временный ответ модели
         model_reply = await mock_model_answer(code, text)
 
         await message.answer(
-            f"Текущая модель: {full_name} ({status})\n\n{model_reply}"
+            tr(
+                user_id,
+                "ai_reply_header",
+                full_name=full_name,
+                status=status,
+                reply=model_reply
+            )
         )
     else:
         await message.answer(
-            f"Ты написал: {text}\n"
-            f"(если хочешь задать вопрос ИИ — нажми кнопку «🤖 Задать вопрос» или /help)"
+            tr(user_id, "echo", text=text),
+            parse_mode="Markdown"
         )
-
-# ЗАПУСК БОТА
-async def main():
-    print("Бот запускается...")
-    await dp.start_polling(bot)
-
-
-if __name__ == "__main__":
-    asyncio.run(main())

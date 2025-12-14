@@ -1,4 +1,4 @@
-# Все модели + платные/бесплатные
+# All models + paid/free
 MODELS = {
     # ChatGPT
     "chatgpt_instant": {
@@ -45,7 +45,7 @@ MODELS = {
     },
 }
 
-# какие модели у какого семейства
+# which models belong to which family
 PROVIDER_MODELS = {
     "chatgpt": [
         "chatgpt_instant",
