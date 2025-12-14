@@ -1,11 +1,11 @@
 from .models import MODELS
 from .core import DEFAULT_MODEL_CODE
 
-# ВРЕМЕННЫЙ "ОТВЕТ МОДЕЛИ" (ЗАГЛУШКА)
+# temporary "model response"
 
 async def mock_model_answer(model_code: str, text: str) -> str:
     """
-    ВРЕМЕННЫЙ мок-ответ вместо настоящего ИИ.
+    временный мок-ответ вместо настоящего ИИ.
     Потом здесь будет запрос на backend /process_message.
     """
     info = MODELS.get(model_code, MODELS[DEFAULT_MODEL_CODE])

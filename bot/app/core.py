@@ -2,7 +2,7 @@ import os
 from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher, F
 
-# Загрузка токена из .env
+# Loading a token from .env
 load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
@@ -12,19 +12,19 @@ if not BOT_TOKEN:
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
-# МОДЕЛИ И СОСТОЯНИЕ
+# Models and Condition
 
 user_model: dict[int, str] = {}
 waiting_for_question: dict[int, bool] = {}
 users_meta: dict[int, dict] = {}
 
-# Модель по умолчанию (бесплатная GPT-5)
+# Default model free GPT-5
 DEFAULT_MODEL_CODE = "chatgpt_gpt5"
 
-# Лимит для бесплатных пользователей (вопросы)
+# Limit for free users 
 FREE_QUESTION_LIMIT = 50
 
-# Утилиты для users_meta
+# utilities for users_meta
 
 def ensure_user_meta(user_id: int) -> dict:
     """Убедиться, что у пользователя есть запись в users_meta; вернуть её."""
@@ -32,6 +32,7 @@ def ensure_user_meta(user_id: int) -> dict:
         users_meta[user_id] = {
             "is_vip": False,
             "questions_used": 0,
+            "lang": "ru",
         }
     return users_meta[user_id]
 
@@ -53,3 +54,10 @@ def can_ask_question(user_id: int) -> (bool, str):
         "⚠️ Вы исчерпали бесплатный лимит из 50 вопросов.\n"
         "Чтобы продолжить — приобретите VIP или пополните баланс"
     )
+def get_user_lang(user_id: int) -> str:
+    meta = ensure_user_meta(user_id)
+    return "en" if meta.get("lang") == "en" else "ru"
+
+def set_user_lang(user_id: int, lang: str):
+    meta = ensure_user_meta(user_id)
+    meta["lang"] = "en" if lang == "en" else "ru"

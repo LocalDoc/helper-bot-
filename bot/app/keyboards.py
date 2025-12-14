@@ -3,26 +3,36 @@ from aiogram.types import (
     InlineKeyboardButton,
 )
 from .models import PROVIDER_MODELS, MODELS
+from .core import get_user_lang
+from .language import t
 
-def main_menu_kb() -> InlineKeyboardMarkup:
-    """Главное меню под /start."""
+def main_menu_kb(user_id: int) -> InlineKeyboardMarkup:
+    """Main menu under /start"""
+    lang = get_user_lang(user_id)
     keyboard = [
+        [InlineKeyboardButton(text=t(lang, "btn_ask"), callback_data="ask_ai")],
         [
-            InlineKeyboardButton(text="🤖 Задать вопрос", callback_data="ask_ai"),
+            InlineKeyboardButton(text=t(lang, "btn_credits"), callback_data="credits"),
+            InlineKeyboardButton(text=t(lang, "btn_topup"), callback_data="topup"),
         ],
-        [
-            InlineKeyboardButton(text="💰 Мои кредиты", callback_data="credits"),
-            InlineKeyboardButton(text="➕ Пополнить баланс", callback_data="topup"),
-        ],
-        [
-            InlineKeyboardButton(text="⚙️ Выбрать модель", callback_data="choose_model"),
-        ],
+        [InlineKeyboardButton(text=t(lang, "btn_choose_model"), callback_data="choose_model")],
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+
+def settings_menu_kb(user_id: int) -> InlineKeyboardMarkup:
+    """Settings menu /settings"""
+    lang = get_user_lang(user_id)
+    keyboard = [
+        [InlineKeyboardButton(text=t(lang, "btn_profile"), callback_data="settings_profile")],
+        [InlineKeyboardButton(text=t(lang, "btn_vip"), callback_data="settings_vip")],
+        [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="settings_back")],
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 
 def providers_menu_kb() -> InlineKeyboardMarkup:
-    """Меню выбора семейства моделей."""
+    """Model family selection menu"""
     keyboard = [
         [InlineKeyboardButton(text="ChatGPT",   callback_data="provider_chatgpt")],
         [InlineKeyboardButton(text="Deepseek",  callback_data="provider_deepseek")],
@@ -32,7 +42,7 @@ def providers_menu_kb() -> InlineKeyboardMarkup:
 
 
 def models_menu_kb(provider_code: str) -> InlineKeyboardMarkup:
-    """Меню выбора конкретной модели внутри семейства."""
+    """Menu for selecting a specific model with in a family"""
     model_codes = PROVIDER_MODELS.get(provider_code, [])
     buttons: list[list[InlineKeyboardButton]] = []
 
@@ -55,23 +65,19 @@ def models_menu_kb(provider_code: str) -> InlineKeyboardMarkup:
 
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
-def settings_menu_kb() -> InlineKeyboardMarkup:
-    """Меню настроек (/settings)"""
+def language_kb(user_id: int) -> InlineKeyboardMarkup:
+    lang = get_user_lang(user_id)
     keyboard = [
         [
-            InlineKeyboardButton(
-                text="Профиль", callback_data="settings_profile"
-            ),
-        ],
-        [
-            InlineKeyboardButton(
-                text="VIP статус", callback_data="settings_vip"
-            ),
-        ],
-        [
-            InlineKeyboardButton(
-                text="⬅️ В главное меню", callback_data="settings_back"
-            ),
-        ],
+            InlineKeyboardButton(text=t(lang, "btn_ru"), callback_data="lang:ru"),
+            InlineKeyboardButton(text=t(lang, "btn_en"), callback_data="lang:en"),
+        ]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def pay_kb(user_id: int) -> InlineKeyboardMarkup:
+    lang = get_user_lang(user_id)
+    keyboard = [
+        [InlineKeyboardButton(text=t(lang, "btn_get_plus"), callback_data="pay:get_plus")]
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
