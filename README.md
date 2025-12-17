@@ -29,14 +29,17 @@
 **Язык:** Python  
 **Телеграм-бот:** Aiogram (асинхронность, FSM, промежуточное ПО, инлайн-кнопки).  
 **Backend API:** FastAPI (REST API для обработки сообщений и бизнес-логики).  
+
 **AI / LLM:**  
 - OpenAI API (ChatGPT).  
 - Perplexity API.  
 - DeepSeek API.  
+
 **База данных:** PostgreSQL (пользователи, сообщения, кредиты, подписки, платежи).  
 **ORM и миграции:**  
 - SQLAlchemy.  
 - Alembic.  
+
 **Платежи:** API платежного провайдера (обработка платежей и webhook).  
 **Инфраструктура:** Docker, Docker Compose, NGINX (SSL).  
 **Тестирование:** Pytest.
