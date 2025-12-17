@@ -1,1 +1,1 @@
-Folder containing images for the project. 
+Folder containing images for the project and their meremaid code. 

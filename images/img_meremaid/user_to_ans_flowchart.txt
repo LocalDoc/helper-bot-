@@ -1,3 +1,7 @@
+---
+config:
+  theme: dark
+---
 graph TD
   A[User opens helper bot] --> B{/start}
   B -->|Yes| C[Welcome + Menu]

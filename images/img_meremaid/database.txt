@@ -1,0 +1,53 @@
+---
+config:
+  theme: dark
+---
+erDiagram
+    USERS {
+        BIGSERIAL id PK "Primary Key"
+        VARCHAR telegram_id "Telegram user ID"
+        VARCHAR username
+        VARCHAR first_name
+        VARCHAR last_name
+        BOOLEAN is_vip
+        DATE vip_start
+        DATE vip_end
+        BOOLEAN trial_active
+        INT trial_messages_left
+        TIMESTAMP created_at
+        TIMESTAMP updated_at
+    }
+
+    History {
+        BIGSERIAL id PK "Primary Key"
+        BIGINT user_id FK "FK to USERS"
+        VARCHAR model "ChatGPT, Perplexity, DeepSeek"
+        TEXT user_message
+        TEXT ai_response
+        TIMESTAMP created_at
+    }
+
+    Subscriptions {
+        BIGSERIAL id PK
+        BIGINT user_id FK "FK to USERS"
+        VARCHAR plan "Monthly, Yearly"
+        DATE start_date
+        DATE end_date
+        BOOLEAN active
+        TIMESTAMP created_at
+        TIMESTAMP updated_at
+    }
+
+    Transactions {
+        BIGSERIAL id PK
+        BIGINT user_id FK "FK to USERS"
+        DECIMAL amount
+        VARCHAR currency
+        DATE payment_date
+        BOOLEAN success
+        VARCHAR telegram_payment_id "Telegram payment identifier"
+    }
+
+    USERS ||--o{ History : "writes"
+    USERS ||--o{ Subscriptions : "has"
+    USERS ||--o{ Transactions : "makes"
