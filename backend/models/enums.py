@@ -1,11 +1,23 @@
-"""
-to be implemented at a latter time 
-"""
+
 
 from enum import Enum
 
-class AIProvider(str, Enum):
-    OPENAI = "openai"
-    GEMINI = "gemini"
+
+class AIProviderType(str, Enum):
+    """Типы AI"""
+    CHATGPT = "chatgpt"
+    PERPLEXITY = "perplexity"
     DEEPSEEK = "deepseek"
-    MOCK = "mock"
+
+
+class SubscriptionPlanType(str, Enum):
+    """Типы подписок"""
+    TRIAL = "trial"
+    PREMIUM = "premium"
+
+
+class CurrencyType(str, Enum):
+    """Типы валют"""
+    RUB = "RUB"
+    USD = "USD"
+    EUR = "EUR"

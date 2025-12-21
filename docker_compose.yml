@@ -6,13 +6,14 @@ services:
       POSTGRES_USER: ${b}
       POSTGRES_PASSWORD: ${}
     volumes:
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$b -d $$a"]
+      test: [ "CMD-SHELL", "pg_isready -U $$b -d $$a" ]
       interval: 5s
       timeout: 3s
       retries: 20
-    networks: [app-net]
+    networks: [ app-net ]
 
   backend:
     build: ./backend
@@ -22,7 +23,7 @@ services:
         condition: service_healthy
     ports:
       - "${BACKPORT}:8000"
-    networks: [app-net]
+    networks: [ app-net ]
 
   bot:
     build: ./bot
@@ -30,7 +31,7 @@ services:
     depends_on:
       backend:
         condition: service_started
-    networks: [app-net]
+    networks: [ app-net ]
 
   nginx:
     image: nginx:alpine
@@ -40,11 +41,12 @@ services:
       - "${NGINXPORT}:80"
     volumes:
       - ./nginx:/etc/nginx/conf.d:ro
-    networks: [app-net]
-    profiles: ["webhook"]
+    networks: [ app-net ]
+    profiles: [ "webhook" ]
 
 volumes:
   pgdata:
+
 
 networks:
   app-net:
