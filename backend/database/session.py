@@ -57,3 +57,12 @@ async def close_db() -> None:
     """Закрытие соединений с базой данных"""
     await engine.dispose()
     print("Соединения с базой данных закрыты")
+
+
+
+from typing import AsyncGenerator
+from sqlalchemy.ext.asyncio import AsyncSession
+
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    async with AsyncSessionLocal() as session:
+        yield session
