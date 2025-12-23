@@ -21,3 +21,5 @@ class CurrencyType(str, Enum):
     RUB = "RUB"
     USD = "USD"
     EUR = "EUR"
+
+AIProvider = AIProviderType
