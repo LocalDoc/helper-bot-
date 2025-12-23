@@ -72,3 +72,6 @@ async def handle_payment_validation(request: Request, exc: PaymentValidationErro
 async def handle_ai_error(request: Request, exc: AIServiceError):
     return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 
+@app.get("/health")
+def health():
+    return {"status": "ok"}
