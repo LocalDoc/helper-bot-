@@ -37,7 +37,7 @@ from typing import Optional
 class Settings(BaseSettings):
     APP_NAME: str = "pomogator-backend"
     ENV: str = "development"
-
+    DEBUG: bool = False
     # Database (asyncpg) URL (set by Dev 3 / deployment)
     DATABASE_URL: Optional[str] = None
 
