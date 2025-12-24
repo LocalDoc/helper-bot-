@@ -1,30 +1,7 @@
 """
-PURPOSE:
 Central startup file for the Pomogator FastAPI backend server.
 It initializes the API server, registers all feature routers, sets up global
 error handling, and manages application lifecycle.
-
-WHAT HAPPENS WHEN THIS FILE RUNS:
-1. FASTAPI APP CREATION: A new FastAPI instance named "Pomogator Backend" is created
-2. ROUTER REGISTRATION: All feature modules (messages, credits, payments, etc.) are mounted
-3. EXCEPTION HANDLERS: Custom business logic errors get converted to proper HTTP responses
-4. LIFECYCLE HOOKS: Startup/shutdown events log when the server starts/stops
-5. SERVER START: When executed, it begins listening on HOST:PORT (default: 0.0.0.0:8000)
-
-API STRUCTURE:
-├── /api/  All feature endpoints via included routers
-│   ├── /process_message: AI message processing
-│   ├── /credits: Credit management
-│   ├── /payments: Payment processing  
-│   ├── /users: User management
-│   ├── /trial: Trial system
-│   └── /webhook: External service webhooks
-
-ERROR HANDLING:
-• NotEnoughCredits: 402 Payment Required / 403 Forbidden
-• UserNotFound: 404 Not Found
-• PaymentValidationError: 400 Bad Request
-• AIServiceError: 503 Service Unavailable / 500 Internal Server Error
 """
 
 from fastapi import FastAPI, Request
