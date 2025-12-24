@@ -1,7 +1,4 @@
-
-
 from enum import Enum
-
 
 class AIProviderType(str, Enum):
     """Типы AI"""

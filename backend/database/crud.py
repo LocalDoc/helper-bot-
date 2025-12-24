@@ -87,6 +87,58 @@ async def update_user(
 
     return user
 
+async def get_transaction_by_id(session: AsyncSession, transaction_id: int) -> Optional[Payment]:
+    """
+    Get payment transaction by ID.
+    """
+    stmt = select(Payment).where(Payment.id == transaction_id)
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()
+
+async def get_user_by_telegram(session: AsyncSession, telegram_id: str) -> Optional[User]:
+    try:
+        telegram_id_int = int(telegram_id)
+    except ValueError:
+        return None
+    return await get_user_by_telegram_id(session, telegram_id_int)
+
+
+async def get_or_create_user(
+    session: AsyncSession,
+    telegram_id: str,
+    trial_messages_left: int = 10,
+    is_vip: bool = False
+) -> User:
+    try:
+        telegram_id_int = int(telegram_id)
+    except ValueError:
+        telegram_id_int = 0
+    
+    user = await get_user_by_telegram_id(session, telegram_id_int)
+    
+    if not user:
+        user = await create_user(session, telegram_id_int, trial_messages_left, is_vip)
+    
+    return user
+
+
+async def change_credits(
+    session: AsyncSession,
+    user: User,
+    delta: int
+) -> User:
+    if delta > 0:
+        user.trial_messages_left += delta
+    elif delta < 0:
+        user.trial_messages_left = max(0, user.trial_messages_left + delta)
+    
+    user.updated_at = datetime.utcnow()
+    await session.commit()
+    await session.refresh(user)
+    
+    await create_or_update_active_user(session, user.id)
+    
+    return user
 
 async def update_user_by_telegram_id(
     session: AsyncSession,
