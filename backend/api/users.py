@@ -12,14 +12,12 @@ from backend.utils.logger import logger
 
 router = APIRouter(prefix="/api/v1")
 
-
 @router.post("/register")
 async def register(payload: RegisterRequest, session: AsyncSession = Depends(get_session)):
     user = await register_user(session, payload.telegram_id)
     await session.flush()
     logger.info("User registered: %s", payload.telegram_id)
     return {"ok": True, "telegram_id": user.telegram_id}
-
 
 @router.get("/user_profile", response_model=UserProfile)
 async def user_profile(telegram_id: str, session: AsyncSession = Depends(get_session)):

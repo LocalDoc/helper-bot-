@@ -1,72 +1,73 @@
-"""
-dev2 to be implement proper description later
-"""
+# backend/services/user_service.py
+from sqlalchemy.orm import Session
+from typing import Optional, Tuple, Dict, Any
+from datetime import datetime
+from ..database import crud
+from ..models.enums import SubscriptionPlanType
+from ..models.database import User
+import logging
 
-from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional
-from backend.utils.logger import logger
-from backend.models.schemas import RegisterRequest, UserProfile
-from backend.utils.exceptions import UserNotFound
-from backend.database import crud
+logger = logging.getLogger(__name__)
 
+class UserService:
+    def __init__(self, db: Session):
+        self.db = db
 
-async def register_user(session: AsyncSession, telegram_id: str):
-    telegram_id_int = int(telegram_id)
-    user = await crud.get_user_by_telegram_id(session, telegram_id_int)
+    def get_or_create_user(self, telegram_id: int) -> User:
+        user = crud.get_user_by_telegram_id(self.db, telegram_id)
+        if not user:
+            user = crud.create_user(self.db, telegram_id)
+            logger.info(f"Created new user with telegram_id: {telegram_id}")
 
-    if user is None:
-        user = await crud.create_user(
-            session=session,
-            telegram_id=telegram_id_int
-        )
+        crud.update_user_last_active(self.db, user.id)
+        return user
 
-    logger.info("Registered user %s", telegram_id)
-    return user
+    def get_user_status(self, telegram_id: int) -> Optional[Dict[str, Any]]:
+        user = crud.get_user_by_telegram_id(self.db, telegram_id)
+        if not user:
+            return None
 
+        subscription = crud.get_active_subscription(self.db, user.id)
+        return {
+            "telegram_id": user.telegram_id,
+            "is_vip": bool(user.is_vip),
+            "trial_messages_left": int(user.trial_messages_left or 0),
+            "has_active_subscription": subscription is not None,
+            "subscription_end_date": subscription.end_date if subscription else None,
+            "active_plan": subscription.plan if subscription else None
+        }
 
-async def get_profile(session: AsyncSession, telegram_id: str) -> UserProfile:
-    telegram_id_int = int(telegram_id)
-    user = await crud.get_user_by_telegram_id(session, telegram_id_int)
+    def can_user_send_message(self, telegram_id: int) -> Tuple[bool, str, Optional[int]]:
+        user = crud.get_user_by_telegram_id(self.db, telegram_id)
+        if not user:
+            return False, "User not found", None
 
-    if user is None:
-        raise UserNotFound()
+        subscription = crud.get_active_subscription(self.db, user.id)
 
-    credits = 999999 if user.is_vip else user.trial_messages_left
-    is_trial_active = (not user.is_vip) and (user.trial_messages_left > 0)
-    trial_remaining = user.trial_messages_left if not user.is_vip else 0
+        if subscription:
+            plan = subscription.plan
+            if plan == SubscriptionPlanType.PREMIUM:
+                return True, "Premium subscription active", None
+            elif plan == SubscriptionPlanType.TRIAL:
+                trial_left = int(user.trial_messages_left or 0)
+                if trial_left > 0:
+                    return True, "Trial active", trial_left
+                else:
+                    return False, "Trial messages exhausted", 0
+        else:
+            trial_left = int(user.trial_messages_left or 0)
+            if trial_left > 0:
+                return True, "Using trial messages", trial_left
+            else:
+                return False, "No messages left. Please subscribe.", 0
 
-    return UserProfile(
-        telegram_id=telegram_id,
-        credits=credits,
-        is_trial_active=is_trial_active,
-        trial_remaining=trial_remaining,
-    )
+    def decrement_trial_messages(self, telegram_id: int) -> int:
+        user = crud.get_user_by_telegram_id(self.db, telegram_id)
+        if not user:
+            return 0
 
-
-async def change_user_credits(session: AsyncSession, telegram_id: str, delta: int):
-    telegram_id_int = int(telegram_id)
-    user = await crud.get_user_by_telegram_id(session, telegram_id_int)
-
-    if user is None:
-        user = await crud.create_user(session, telegram_id_int)
-
-    if user is None:
-        logger.error("Failed to create user %s", telegram_id)
-        raise UserNotFound()
-
-    if not user.is_vip:
-        new_trial_messages = user.trial_messages_left + delta
-        if new_trial_messages < 0:
-            new_trial_messages = 0
-
-        updated_user = await crud.update_user(
-            session=session,
-            user_id=user.id,
-            trial_messages_left=new_trial_messages
-        )
-        logger.info("Changed trial messages for %s by %s -> now %s",
-                    telegram_id, delta, updated_user.trial_messages_left)  # type: ignore
-        return updated_user
-
-    logger.info("User %s is VIP, credits not changed", telegram_id)
-    return user
+        trial_left = int(user.trial_messages_left or 0)
+        if trial_left > 0:
+            trial_left -= 1
+            crud.decrement_trial_messages(self.db, user.id)
+        return trial_left

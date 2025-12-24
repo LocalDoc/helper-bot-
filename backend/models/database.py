@@ -1,168 +1,76 @@
-import sqlalchemy
 from sqlalchemy import (
-    BigInteger, Boolean, Date, ForeignKey,
-    Integer, Numeric, String, Text, TIMESTAMP
+    Column, Integer, BigInteger, String, Text, Boolean, 
+    DECIMAL, Date, DateTime, Enum as SQLEnum, ForeignKey,
+    Index
 )
-from sqlalchemy.ext.asyncio import AsyncAttrs
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
-from datetime import datetime, date
+from sqlalchemy.orm import relationship
+
+from backend.database.session import Base  
 from .enums import AIProviderType, SubscriptionPlanType, CurrencyType
 
-
-class Base(AsyncAttrs, DeclarativeBase):
-    """Базовый класс для всех моделей SQLAlchemy с поддержкой асинхронности"""
-    pass
-
-
 class User(Base):
-    """Модель пользователя Telegram"""
-
-    __tablename__ = "users"
-
-    id: Mapped[int] = mapped_column(
-        BigInteger, primary_key=True, autoincrement=True)
-    telegram_id: Mapped[int] = mapped_column(
-        BigInteger, unique=True, nullable=False, index=True)
-    trial_messages_left: Mapped[int] = mapped_column(
-        Integer, default=10, nullable=False)
-    is_vip: Mapped[bool] = mapped_column(
-        Boolean, default=False, nullable=False)
-    last_active: Mapped[datetime] = mapped_column(
-        TIMESTAMP(timezone=True), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP(timezone=True),
-        server_default=func.now(),
-        nullable=False
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP(timezone=True),
-        server_default=func.now(),
-        onupdate=func.now(),
-        nullable=False
-    )
-
-    active_user: Mapped["ActiveUser"] = relationship(
-        back_populates="user",
-        cascade="all, delete-orphan",
-        uselist=False
-    )
-    message_history: Mapped[list["MessageHistory"]
-                            ] = relationship(back_populates="user")
-    subscriptions: Mapped[list["Subscription"]
-                          ] = relationship(back_populates="user")
-    payments: Mapped[list["Payment"]] = relationship(back_populates="user")
-
+    __tablename__ = 'users'
+    
+    id = Column(BigInteger, primary_key=True, index=True)
+    telegram_id = Column(BigInteger, unique=True, nullable=False, index=True)
+    trial_messages_left = Column(Integer, default=10)
+    is_vip = Column(Boolean, default=False)
+    last_active = Column(DateTime, default=func.now(), onupdate=func.now())
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    
+    # Relationships
+    messages = relationship("MessageHistory", back_populates="user", cascade="all, delete-orphan")
+    subscriptions = relationship("Subscription", back_populates="user", cascade="all, delete-orphan")
+    payments = relationship("Payment", back_populates="user", cascade="all, delete-orphan")
+    active_status = relationship("ActiveUser", back_populates="user", uselist=False, cascade="all, delete-orphan")
 
 class ActiveUser(Base):
-    """Модель для быстрого доступа к активным пользователям"""
-
-    __tablename__ = "active_users"
-
-    user_id: Mapped[int] = mapped_column(
-        BigInteger,
-        ForeignKey("users.id", ondelete="CASCADE"),
-        primary_key=True
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP(timezone=True),
-        server_default=func.now(),
-        onupdate=func.now(),
-        nullable=False
-    )
-
-    user: Mapped["User"] = relationship(back_populates="active_user")
-
+    __tablename__ = 'active_users'
+    
+    user_id = Column(BigInteger, ForeignKey('users.id', ondelete='CASCADE'), primary_key=True)
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    
+    # Relationship
+    user = relationship("User", back_populates="active_status")
 
 class MessageHistory(Base):
-    """Модель истории сообщений пользователя с ИИ"""
-
-    __tablename__ = "message_history"
-
-    id: Mapped[int] = mapped_column(
-        BigInteger, primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(
-        BigInteger,
-        ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True
-    )
-    ai_provider: Mapped[AIProviderType] = mapped_column(
-        sqlalchemy.Enum(AIProviderType, name="ai_provider_type"),
-        nullable=False
-    )
-    ai_model: Mapped[str] = mapped_column(String(100), nullable=False)
-    user_message: Mapped[str] = mapped_column(Text, nullable=False)
-    ai_response: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP(timezone=True),
-        server_default=func.now(),
-        nullable=False
-    )
-
-    user: Mapped["User"] = relationship(back_populates="message_history")
-
+    __tablename__ = 'message_history'
+    
+    id = Column(BigInteger, primary_key=True, index=True)
+    user_id = Column(BigInteger, ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+    ai_provider = Column(SQLEnum(AIProviderType), nullable=False)
+    ai_model = Column(String(100), nullable=False)
+    user_message = Column(Text)
+    ai_response = Column(Text)
+    created_at = Column(DateTime, default=func.now(), index=True)
+    user = relationship("User", back_populates="messages")
 
 class Subscription(Base):
-    """Модель подписок пользователя"""
-
-    __tablename__ = "subscriptions"
-
-    id: Mapped[int] = mapped_column(
-        BigInteger, primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(
-        BigInteger,
-        ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True
-    )
-    plan: Mapped[SubscriptionPlanType] = mapped_column(
-        sqlalchemy.Enum(SubscriptionPlanType, name="subscription_plan_type"),
-        nullable=False
-    )
-    start_date: Mapped[date] = mapped_column(Date, nullable=False)
-    end_date: Mapped[date] = mapped_column(Date, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP(timezone=True),
-        server_default=func.now(),
-        nullable=False
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP(timezone=True),
-        server_default=func.now(),
-        onupdate=func.now(),
-        nullable=False
-    )
-
-    user: Mapped["User"] = relationship(back_populates="subscriptions")
-
+    __tablename__ = 'subscriptions'
+    
+    id = Column(BigInteger, primary_key=True, index=True)
+    user_id = Column(BigInteger, ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+    plan = Column(SQLEnum(SubscriptionPlanType), nullable=False)
+    start_date = Column(Date, nullable=False)
+    end_date = Column(Date, nullable=False, index=True)
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    user = relationship("User", back_populates="subscriptions")
 
 class Payment(Base):
-    """Модель платежей пользователя"""
+    __tablename__ = 'payments'
+    
+    id = Column(BigInteger, primary_key=True, index=True)
+    user_id = Column(BigInteger, ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+    amount = Column(DECIMAL(10, 2), nullable=False)
+    currency = Column(SQLEnum(CurrencyType), nullable=False, default=CurrencyType.USD)
+    payment_date = Column(Date, nullable=False)
+    success = Column(Boolean, default=False)
+    telegram_payment_id = Column(String(255), index=True)
+    created_at = Column(DateTime, default=func.now())
+    user = relationship("User", back_populates="payments")
 
-    __tablename__ = "payments"
-
-    id: Mapped[int] = mapped_column(
-        BigInteger, primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(
-        BigInteger,
-        ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True
-    )
-    amount: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
-    currency: Mapped[CurrencyType] = mapped_column(
-        sqlalchemy.Enum(CurrencyType, name="currency_code"),
-        nullable=False
-    )
-    payment_date: Mapped[date] = mapped_column(Date, nullable=False)
-    success: Mapped[bool] = mapped_column(Boolean, nullable=False)
-    telegram_payment_id: Mapped[str] = mapped_column(
-        String(255), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        TIMESTAMP(timezone=True),
-        server_default=func.now(),
-        nullable=False
-    )
-
-    user: Mapped["User"] = relationship(back_populates="payments")
+Index('idx_message_history_user_created', MessageHistory.user_id, MessageHistory.created_at)
+Index('idx_subscriptions_active', Subscription.user_id, Subscription.end_date)

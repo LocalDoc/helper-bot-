@@ -1,64 +1,80 @@
-name: helper-bot
+# docker-compose.yml
+version: '3.8'
 
 services:
-  db:
-    image: postgres:16-alpine
-    env_file: .env
+  postgres:
+    image: postgres:15-alpine
+    container_name: helper-bot-postgres
+    restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+      POSTGRES_DB: ${DB_NAME:-helper_bot}
     volumes:
-      - pgdata:/var/lib/postgresql/data
-      - ./init-db.sql:/docker-entrypoint-initdb.d/00-init-db.sql:ro
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/database/migrations/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - helper-bot-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
-    networks: [app-net]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   backend:
-    ports:
-      - "8000:8000"
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
-    env_file: .env
+    build: ./backend
+    container_name: helper-bot-backend
+    restart: unless-stopped
     depends_on:
-      db:
+      postgres:
         condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-changeme}@postgres:5432/${DB_NAME:-helper_bot}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
+      PERPLEXITY_API_KEY: ${PERPLEXITY_API_KEY}
+    volumes:
+      - ./backend:/app
+    networks:
+      - helper-bot-network
     expose:
-      - "8000"
-    networks: [app-net]
+      - 8000
 
   bot:
-    build:
-      context: .
-      dockerfile: bot/Dockerfile
-    env_file: .env
-    environment:
-      # bot/app/core.py expects BOT_TOKEN; keep TELEGRAM_BOT_TOKEN for README consistency
-      BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
-    depends_on:
-      backend:
-        condition: service_started
-    networks: [app-net]
-
-  nginx:
-    image: nginx:1.27-alpine
+    build: ./bot
+    container_name: helper-bot-telegram
+    restart: unless-stopped
     depends_on:
       - backend
+    environment:
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      BACKEND_API_URL: http://backend:8000/api
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-changeme}@postgres:5432/${DB_NAME:-helper_bot}
+    volumes:
+      - ./bot:/app
+    networks:
+      - helper-bot-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: helper-bot-nginx
+    restart: unless-stopped
+    depends_on:
+      - backend
+      - bot
     ports:
-      - "${NGINXPORT:-8080}:80"
+      - "80:80"
+      - "443:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-    networks: [app-net]
-    profiles: ["webhook"]
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    networks:
+      - helper-bot-network
 
 volumes:
-  pgdata:
+  postgres_data:
 
 networks:
-  app-net:
+  helper-bot-network:
     driver: bridge
